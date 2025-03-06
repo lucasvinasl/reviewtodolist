@@ -15,7 +15,7 @@ public class UsuarioService {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    public Usuario findUsuarioById(Long id){
+    public Usuario buscarUsuarioById(Long id){
         Optional<Usuario> usuario = this.usuarioRepository.findById(id) ;
 
         return usuario.orElseThrow(()-> new RuntimeException(
@@ -34,7 +34,7 @@ public class UsuarioService {
     @Transactional
     public Usuario atualizarUsuario(Usuario usuario){
 
-        Usuario usuarioExistente = findUsuarioById(usuario.getId());
+        Usuario usuarioExistente = buscarUsuarioById(usuario.getId());
         usuarioExistente.setSenha(usuario.getSenha());
         return this.usuarioRepository.save(usuarioExistente);
 
@@ -42,7 +42,7 @@ public class UsuarioService {
 
     public void deleteUsuario(Long id){
 
-        Usuario usuario = findUsuarioById(id);
+        Usuario usuario = buscarUsuarioById(id);
 
         try{
             this.usuarioRepository.delete(usuario);

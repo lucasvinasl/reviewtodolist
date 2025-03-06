@@ -1,6 +1,8 @@
 package com.reviewtodolist.model;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
@@ -48,8 +50,40 @@ public class Usuario {
     private String senha;
 
     @OneToMany(mappedBy = "usuario")
+    //@JsonManagedReference
+    @JsonIgnore
     private List<Cliente> clientes = new ArrayList<>();
 
 
+    public Long getId() {
+        return id;
+    }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getSenha() {
+        return senha;
+    }
+
+    public void setSenha(String senha) {
+        this.senha = senha;
+    }
+
+    public List<Cliente> getClientes() {
+        return clientes;
+    }
+
+    public void setClientes(List<Cliente> clientes) {
+        this.clientes = clientes;
+    }
 }

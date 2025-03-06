@@ -1,6 +1,7 @@
 package com.reviewtodolist.model;
 
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import lombok.*;
 
 import javax.persistence.*;
@@ -19,6 +20,7 @@ public class Cliente {
 
     public static final String TABLE_NAME = "clientes";
 
+    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_cliente", unique = true)
@@ -26,6 +28,7 @@ public class Cliente {
 
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false, updatable = false)
+    //@JsonBackReference
     private Usuario usuario;
 
 
@@ -39,5 +42,35 @@ public class Cliente {
     private String telefoneCliente;
 
 
+    public Long getId() {
+        return id;
+    }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Usuario getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(Usuario usuario) {
+        this.usuario = usuario;
+    }
+
+    public String getNomeCliente() {
+        return nomeCliente;
+    }
+
+    public void setNomeCliente(String nomeCliente) {
+        this.nomeCliente = nomeCliente;
+    }
+
+    public String getTelefoneCliente() {
+        return telefoneCliente;
+    }
+
+    public void setTelefoneCliente(String telefoneCliente) {
+        this.telefoneCliente = telefoneCliente;
+    }
 }
