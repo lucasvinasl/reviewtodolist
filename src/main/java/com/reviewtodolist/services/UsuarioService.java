@@ -40,6 +40,8 @@ public class UsuarioService {
 
     }
 
+    // Validar se a senha nova é igual a senha atual
+
     public void deleteUsuario(Long id){
 
         Usuario usuario = buscarUsuarioById(id);

@@ -2,6 +2,7 @@ package com.reviewtodolist.model;
 
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.*;
 
 import javax.persistence.*;
@@ -20,7 +21,6 @@ public class Cliente {
 
     public static final String TABLE_NAME = "clientes";
 
-    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_cliente", unique = true)
@@ -28,7 +28,7 @@ public class Cliente {
 
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false, updatable = false)
-    //@JsonBackReference
+    @JsonBackReference
     private Usuario usuario;
 
 
@@ -42,35 +42,28 @@ public class Cliente {
     private String telefoneCliente;
 
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Usuario getUsuario() {
-        return usuario;
-    }
-
-    public void setUsuario(Usuario usuario) {
-        this.usuario = usuario;
-    }
-
-    public String getNomeCliente() {
-        return nomeCliente;
-    }
-
-    public void setNomeCliente(String nomeCliente) {
-        this.nomeCliente = nomeCliente;
-    }
-
-    public String getTelefoneCliente() {
-        return telefoneCliente;
-    }
-
-    public void setTelefoneCliente(String telefoneCliente) {
-        this.telefoneCliente = telefoneCliente;
-    }
 }
+ /*
+    Entidade - Cliente:
+        Anotações padrões do Lombok e Entidade como em Usuario.
+        Definição do nome da tabela como em Usuario.
+
+        Todos os atributos seguem a mesma lógica do Usuario.
+
+        Como eu tenho a relação entre Usuario e Cliente, eu tenho que instanciar essa classe como um atributo.
+        @ManyToOne
+        @JoinColumn(name = "usuario_id", nullable = false, updatable = false)
+        @JsonBackReference
+        private Usuario usuario;
+
+        @ManyToOne -> Define a relação Vários clientes para 1 Usuário - X:1.
+        @JoinColumn(name = "usuario_id", nullable = false, updatable = false) ->
+            Define a coluna que fará o join/junção entre as duas tabelas e me fornecerá a referência da chave estrangeira.
+            Nesse caso, será criada uma coluna "usuario_id" que retorna o ID do usuario dono daquele cliente(chave estrangeira).
+
+        @JsonBackReference -> Fecha a relação entre Referência pai e filha para não ter o problema de Serilização do Json.
+
+*/
+
+
+

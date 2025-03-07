@@ -41,6 +41,8 @@ public class ClienteService {
         return cliente;
     }
 
+    // validações extras, como nome obrigatório, poderia verificar antes de salvar.
+
     @Transactional
     public Cliente atualizarCliente(Cliente cliente){
 

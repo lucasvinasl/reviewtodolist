@@ -1,0 +1,481 @@
+/*
+	Entidade - Usuario:
+
+		Anotações da Classe:
+
+        	Pensando na concepção de um pequeno CRM o usuário terá o contexto de gerenciar os seus Clientes.
+
+			@Entity -> Declara ao Spring que a classe é uma entidade portanto será tratada como uma Tabela diretamente no Banco de Dados.
+
+			@Table -> Sugere algumas características dessa tabela, nesse caso: nome.
+
+			@AllArgsConstructor
+			@NoArgsConstructor
+				-> Anotações do Lombok que injetam os construtores padrões de acordo com os atributos da classe, bem como o construtor vazio.
+
+			@Getter
+			@Setter
+			@EqualsAndHashCode
+				-> Também anotações do Lombok que intejam os métodos óbvios.
+
+
+			Essas são anotações padrões para a construção de qualquer entidade básica na arquitetura REST.
+
+		Atributos da Classe:
+
+            public static final String TABLE_NAME = "usuarios"->
+
+				static permite que esse atributo da classe seja acessado livremente sem necessidade de instanciar uma classe Usuários.
+				final define que o nome da classe não será alterado.
+
+
+			public interface CriarUsuario{}
+    		public interface AttUsuario {}
+				-> Essas duas interfaces são definidas afim de criar um contrato nos dois principais métodos que serão gerenciados pelo 			controller. Fazendo que eu tenha garantia(contrato) de determinados comportamentos serão implementados no momento da criação e da 			atualização de algum Usuário.
+
+
+            Id do Usuario:
+    			@Id
+    			@GeneratedValue(strategy = GenerationType.IDENTITY)
+    			@Column(name = "id_usuario", unique = true)
+    			private Long id;
+
+                O primeiro atributo padrão da entidade é o seu ID, que irá identificar de forma única aquele atributo no banco de dados.
+
+                @Id -> do java persistence (JPA) indica essa padrão ao banco de dados
+
+                @GeneratedValue  ->
+                    Especifica a regra de como esse atributo será gerado no banco de dados:
+                    Usando uma strategy IDENTITY -> seria algo semelhando ao AUTO_INCREMENTE
+                    Além dessa opção, existe também:
+                        AUTO -> O próprio Hibernate decide a estratégia,
+                        SEQUENCE -> Utiliza uma sequência numérica para gerar ID (mais comum em PostgreSQL).,
+                        TABLE -> Tabela só para armazenar o ID.
+
+                @Column -> Especifica o nome da coluna desse atributo na minha tabela de Usuario e dá suporte a algumas características,
+                nesse caso, o id será sempre um valor único.
+
+            Nome/username do Usuario:
+                    @Column(name = "nome_usuario", length = 100, nullable = false, unique = true)
+                    @NotNull(groups = CriarUsuario.class)
+                    @NotEmpty(groups = CriarUsuario.class)
+                    @Size(groups = CriarUsuario.class, min = 2, max =  100)
+                    private String nome;
+
+                    @Column -> Define o nome da coluna do atributo, considera que ele não seja nulo, único e o seu tamanho.
+                    @NotNull(groups = CriarUsuario.class)
+                    @NotEmpty(groups = CriarUsuario.class)
+                    @Size(groups = CriarUsuario.class, min = 2, max =  100)
+
+                    -> Não pode ser nulo nem receber uma string vazia, além de especificar o tamanho, no momento da criação de um Usuario.
+                    -> Perceba que a Interface definida anteriormente de CriarUsuario é implementada nessas 3 anotações:
+                        Isso fará com que, sempre que houver a necessidade de declarar o nome/username do usuário essas 3 condições
+                        deverão ser seguidos, afinal, elas passam a compor o contrato da interface.
+                            ## Isso se torna mais visível nos Controllers através da anotação @Validated
+
+
+            Senha/password do Usuario:
+                    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+                    @Column(name = "senha_usuario", length = 50, nullable = false)
+                    @NotNull(groups = {CriarUsuario.class, AttUsuario.class})
+                    @NotEmpty(groups = {CriarUsuario.class, AttUsuario.class})
+                    @Size(groups = {CriarUsuario.class, AttUsuario.class}, min = 8, max = 50)
+                    private String senha;
+
+                    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)->
+                        Em uma requisição Get por exemplo, eu teria o retorno de um Json na minha API, sendo assim o atributo de senha
+                    poderia de alguma forma ser repassado. Utilizando essa anotação e indicado que o nível de acesso é apenas escrita,
+                    eu garanto que o usuário pode apenas criar uma senha e nunca ver essa senha através do Json response da API,
+                    somente no banco de dados, caso tenha acesso.
+
+                    @Column(name = "senha_usuario", length = 50, nullable = false)
+                    @NotNull(groups = {CriarUsuario.class, AttUsuario.class})
+                    @NotEmpty(groups = {CriarUsuario.class, AttUsuario.class})
+                    @Size(groups = {CriarUsuario.class, AttUsuario.class}, min = 8, max = 50)
+                        -> Todos esse atributos tem o mesmo sentido para Nome, com algumas diferenças.
+                        Agora eu implemento a interface AttUsuario, ou seja, eu preciso definiar uma senha não nula e não vazia com tamanho
+                        específico tanto ao criar um usuário como ao atualizar um usuário:
+                            Geralmente é regra de negócio de qualquer sistema você conseguir atualizar sua senha, mas nem sempre de redefinir
+                            o nome do seu usuário, por exemplo, com e-mails.
+
+
+            Lista de Clientes do Usuario:
+                    @OneToMany(mappedBy = "usuario")
+                    @JsonManagedReference
+                    //@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+                    //@JsonIgnore
+                    private List<Cliente> clientes = new ArrayList<>();
+
+                     @OneToMany(mappedBy = "usuario") ->
+                        Define o Relacionamento desse atributo, ou seja,1 Usuário pode ter N clientes. 1:X.
+
+                        Se é uma relação 1:X, um preciso ter uma chave estrangeira que irá relacionar a tabela Usuario com a tabela Cliente.
+
+                        mappedBy = "usuario" -> Indica o atributo que será relacionado na classe que receber a anotação complementar @ManyToOne,
+                        nesse caso, na classe Cliente eu tenho o atributo private Usuario usuario que recebe essa anotação.
+
+                        Se não houver essa informação do mappedBy, o Hibernate criaria uma nova tabela usuarios_clientes:
+                            Uma coluna usuario_id e outra coluna cliente_id para relacioná-las.
+
+
+                    Como eu posso adicionar vários clientes no meus, no momento em que eu fiz uma request para retornar determinado usuário,
+                    caso esse usuário tenha clientes atribuidos a ele, esses clientes também retornarão o usuário nele vinculado e isso criará
+                    um loop infinito no Json.
+
+                    Para resolver esse problema e é um padrão para controlar o nível de acesso das informações que serão repassadas no Json:
+
+                        @JsonIgnore -> Simplesmente vai ignorar esse atributo na resposta do meu Json.
+
+                        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) -> vai dar acesso apenas a escrita desses atributos, ou seja,
+                        consigo criar clientes para o meu usuário mas não posso, a priore, acessalos.
+
+                        @JsonManagedReference -> Defino que esse atributo "Lista de Clientes" seria gerenciado/Meneged pelo atributo pai
+                        @JsonBackReference que será anotado no atributo private Usuario usuario da classe Cliente.
+
+                        Ou seja,
+                            Em Usuario eu tenho uma Lista de Clientes que serão gerenciadas pelo Usuario vinculado ao Cliente.
+
+
+
+
+ */
+
+
+
+  /*
+    Entidade - Cliente:
+        Anotações padrões do Lombok e Entidade como em Usuario.
+        Definição do nome da tabela como em Usuario.
+
+        Todos os atributos seguem a mesma lógica do Usuario.
+
+        Como eu tenho a relação entre Usuario e Cliente, eu tenho que instanciar essa classe como um atributo.
+        @ManyToOne
+        @JoinColumn(name = "usuario_id", nullable = false, updatable = false)
+        @JsonBackReference
+        private Usuario usuario;
+
+        @ManyToOne -> Define a relação Vários clientes para 1 Usuário - X:1.
+        @JoinColumn(name = "usuario_id", nullable = false, updatable = false) ->
+            Define a coluna que fará o join/junção entre as duas tabelas e me fornecerá a referência da chave estrangeira.
+            Nesse caso, será criada uma coluna "usuario_id" que retorna o ID do usuario dono daquele cliente(chave estrangeira).
+
+        @JsonBackReference -> Fecha a relação entre Referência pai e filha para não ter o problema de Serilização do Json.
+
+*/
+
+
+/*
+
+    Repository:
+
+        Repository é uma interface onde permite que seja realizadas as Queries SQL comunicando a API com o Banco de Dados.
+
+        Operações de CRUD.
+
+        Extende à interfaces do JPA que possuem diversos métodos padrões que Queries sem precisar escrever em SQL.
+
+        JpaRepository é definida pela Entidade e pelo tipo de ID da Entidade <Nome da Entidade, Tipo do ID>
+
+        @Repository
+        public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+        }
+
+        Além disso, eu posso declarar Queries tanto no formato Derivada, JPQL e SQL.
+
+        Eu não preciso definir nenhuma query que já tenha por padrão, mas eu devo declarar queries que não são automáticas.
+
+        Por exemplo, Localizar os Clientes de usuário a partir do Id do Usuário:
+
+        Query Derivada - ClienteRepository:
+            List<Cliente> findByUsuario_Id(Long id);
+
+            JPA gera automaticamente a consulta SQL pelo nome do metodo repassado:
+                List<Cliente> findByUsuario_Id(Long id);
+
+            Em JPQL seria:
+                SELECT t FROM Task t WHERE t.user.id = :id
+
+            Em SQL seria:
+                SELECT * FROM task WHERE user_id = ?;
+
+        Query JPQL:
+
+            JPQL é uma linguagem baseada em Objetos(Entidades/Classes) e não em Tabelas.
+
+            @Query("SELECT c FROM Cliente c WHERE c.usuario.id = :id")
+            List<Cliente> findClientesPorUsuario(@Param("id") Long id);
+
+            Cliente c represente a entidade/classe Cliente e não mais a Tabela Cliente, então é criada uma instancia dessa classe.
+
+            Cliente c instancia um objeto da entidade Cleinte e busca c associadas ao id: c.usuario.id
+
+            Em SQL(Spring converte automaticamente) seria:
+                SELECT * FROM cliente WHERE usuario_id = ?;
+
+
+
+        Query Nativa SQL:
+            @Query(value = "SELECT * FROM cliente WHERE usuario_id = :id", nativeQuery = true)
+            List<Cliente> findClientesPorUsuario(@Param("id") Long id);
+
+
+                Query pura em SQL
+                O Spring executa exatamente essa query, sem conversão
+                Maior controle sobre otimizações no banco de dados
+                Diferente do JPQL eu não referencio o Objeto/Entidade Cliente mas sim a tabela Cliente.
+
+                Em SQL:
+                SELECT * FROM task WHERE user_id = ?;
+
+
+        Qual usar?
+            Se a consulta for simples → Use a Query Derivada (findByUser_Id).
+            Se precisar de mais controle, mas ainda quiser JPA → Use JPQL (@Query sem nativeQuery).
+            Se precisar de máxima performance e controle total → Use SQL Nativo (@Query com nativeQuery = true).
+*/
+
+
+/*
+
+    Serivce:
+
+        Define as regras de negócio da minha API.
+
+        O que é possível ou não fazer com minha API ? O que eu terei de CRUD no meu Banco de dados ?
+
+
+        Aqui basicamente é realizado o CRUD, então de forma geral, os métodos serão:
+            Create - Criar Usuario.
+            Read - Seleciona/Buscar Usuario.
+            Update - Atualizar Usuario.
+            Delete - Excluir Usuario.
+
+*/
+
+/*
+
+    UsuarioSerivce:
+
+        @Service -> Define a Classe como um Serivço gerenciado pelo Spring.
+
+        @Autowired
+        private UsuarioRepository usuarioRepository ->
+            Autowired vai injetar todas as dependências associadas ao UsuarioRepository, ou seja, vai permitir que você use todos
+            os métodos desse UsuarioRepository, bem como os métodos da própria classe Usuario.
+
+        CREATE:
+            @Transactional
+            public Usuario criarUsuario(Usuario usuario){
+                usuario.setId(null);
+                usuario.setSenha(usuario.getSenha());
+                usuario = this.usuarioRepository.save(usuario);
+                return usuario;
+            }
+
+            Transactional -> 
+                Garante que o dado só será repassado ao banco se não houver nenhum erro no processo da requisição,
+                caso contrário, nada é passado pro banco e as alterações são desfeitas.
+
+                Garante que todas as operações ocorram com sucesso antes de salvar no banco.
+
+                Isso é bom porque eu estou Criando um Usuário, então é uma atividade importante pra ser repassado pro banco com algum erro.
+
+            usuario.setId(null); -> garanto que ao criar um usuário, se por algum motivo ele tiver um id, esse id será anulado.
+            usuario.setSenha(usuario.getSenha()); -> cria a senha do usuário.
+            usuario = this.usuarioRepository.save(usuario); -> salva esse usuário usando JPA
+
+
+
+        READ:
+
+        public Usuario buscarUsuarioById(Long id){
+            Optional<Usuario> usuario = this.usuarioRepository.findById(id) ;
+
+            return usuario.orElseThrow(()-> new RuntimeException(
+                    "Usuário não encontrado - ID: "+id+" Tipo: "+Usuario.class.getName()
+        ));
+        }
+
+        Método para buscar um usuario pelo seu ID no banco:
+            Vou criar um objeto Optional Usuario, pois o usuário pode existir ou não no banco.
+            Utilizando o método findById do UsuarioRepository, eu faço a query para tentar localizar o Usuario.
+            Se o usuario existir (Se o Optional não é NULL), ele é retornado, se não é lançada a exceção.
+
+            Optional<T>:
+                Lida com o erro NullPointerException, ou seja, auxilia no tratamento da exceção de um dado que pode ou não existir.
+                Se o dado existir, ele guarda, caso contrário, ele fica vazio e não retorna a exceção.
+
+                .isPresent() -> se tem valor
+                .orElse() -> se não tem valor
+                .orElseGet() -> se não tem valor, pode retornar algum método que você passar.
+                .orElseThrow() -> se não tem valor, pode lançar uma exceção.
+                .map() -> Transforma o valor, se existir: 
+                    Optional<String> nomeOpt = usuarioOpt.map(Usuario::getNome);
+                    Se o Usuario exisite, retorna uma String do getNome.
+
+
+        UPDATE:
+                @Transactional
+                public Usuario atualizarUsuario(Usuario usuario){
+
+                    Usuario usuarioExistente = buscarUsuarioById(usuario.getId());
+                    usuarioExistente.setSenha(usuario.getSenha());
+                    return this.usuarioRepository.save(usuarioExistente);
+
+                }
+
+                Usuario usuarioExistente = buscarUsuarioById(usuario.getId()); ->
+                Se o usuário existir, uma instância dele é criado.
+                    A validação se ele existe ou não já é gerenciada pelo método buscarUsuarioById que criei no próprio Serivce.
+                
+                usuarioExistente.setSenha(usuario.getSenha()); ->
+                    Repasso a nova senha
+                
+                return this.usuarioRepository.save(usuarioExistente); ->
+                    Retorna o usuário sendo salvo no banco. É a mesma coisa do CREATE nessa linha, mas um passo a menos.
+
+
+            DELETE:
+
+                public void deleteUsuario(Long id){
+
+                    Usuario usuario = buscarUsuarioById(id);
+
+                    try{
+                        this.usuarioRepository.delete(usuario);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Não foi possível excluir o Usuário: "+e);
+                    }
+                }
+
+                VOID -> porque não precisa retornar nada no Json.
+
+                Usuario usuario = buscarUsuarioById(id); -> Valida se o usuário existe.
+
+                this.usuarioRepository.delete(usuario); -> Tenta deletar o usuário direto com o JPA
+                caso contrário, aplica a exceção.
+
+                Esse try catch talvez nem seja tão necessário, porque o buscarUsuarioById já verifica se o usuário existe, então já elimina um erro.
+                Mas pode ser que exista uma regra que o usuário só pode ser excluído se não tiver nada associado à ele, nenhum cliente, atividade, etc.
+                Então faz sentido ter.
+
+                Fiz dessa forma porque foi o padrão que aprendi no curso.
+      
+
+
+
+    ClienteService:
+
+        @Service -> Define a classe como um Serviço gerenciado pelo Spring
+
+            Criar Cliente
+            Selecionar Cliente: Pelo Id do Cliente ou pelo Usuario
+            Atualizar
+            Deletar
+
+
+        @Autoride tanto para ClienteRepository já que é o ClienteService, como também para o UsuarioSerivce já quue um cliente
+        é vinculado a um usuario.
+
+
+        CREATE:
+            @Transactional
+            public Cliente criarCliente(Cliente cliente){
+                Usuario usuario = this.usuarioService.buscarUsuarioById(cliente.getUsuario().getId());
+                cliente.setId(null);
+                cliente.setUsuario(usuario);
+                cliente = this.clienteRepository.save(cliente);
+                return cliente;
+            }
+
+            Usuario usuario = this.usuarioService.buscarUsuarioById(cliente.getUsuario().getId()); ->
+                O objeto usuário, vai receber o Usuario caso ele exista, verificado pelo buscarUsuarioById.
+                Esse usuario é repassado no momento da criação da requisição no Json, ou seja, o cliente já é associado a um usuário:
+                        {
+                            "nomeCliente": "Empresa X",
+                                "usuario": {
+                                    "id": 1
+                                }
+                        }
+                Então, vai verificar se esse usuario já existe e instanciar. Isso fica melhor elucidade no Controller, onde será
+                formatado o escopo da URL da requisição.
+
+                cliente.setId(null); -> criar um novo cliente, ou seja, "zera" o ID caso já exista (Impede Sobreescrita).
+                cliente.setUsuario(usuario); -> Repassa o obj Usuario para o Atributo Usuario do Cliente.
+                cliente = this.clienteRepository.save(cliente); -> Salva com JPA.
+                return cliente;
+
+
+        READ:
+
+            public Cliente buscarClienteById(Long id){
+                Optional<Cliente> cliente = this.clienteRepository.findById(id);
+
+                return cliente.orElseThrow(() -> new RuntimeException(
+                        "Cliente não encontrado. ID: " +id+ " Tipo: "+Cliente.class.getName()
+                ));
+            }
+
+
+            Buscar um cliente único pelo ID dele mesmo:
+                Mesmo método de buscar pelo usuario, se existir.
+
+
+            public List<Cliente> buscarTodosClientesByUsuarioId(Long id){
+                List<Cliente> listaClientes = this.clienteRepository.findByUsuario_Id(id);
+                return listaClientes;
+            }
+
+            Buscar a Lista de Clientes de um Usuario pelo ID do Usuario:
+                List<Cliente> listaClientes = this.clienteRepository.findByUsuario_Id(id); ->
+                    Busca o usuário pela JPA do Repository, por isso que foi criada essa query.
+
+                    Por padrão, se eu tenho a Entidade Cliente, as Queris seriam apenas vinculadas ao Cliente e não ao Usuário.
+                    Mas nesse caso eu preciso de uma Query vinculado ao usuário pra conseguir retornar meus clientes.
+
+
+            UPDATE:
+
+                @Transactional
+                public Cliente atualizarCliente(Cliente cliente){
+
+                    Cliente clienteExiste = buscarClienteById(cliente.getId());
+                    clienteExiste.setNomeCliente(cliente.getNomeCliente());
+                    clienteExiste.setTelefoneCliente(cliente.getTelefoneCliente());
+                    clienteExiste = this.clienteRepository.save(clienteExiste);
+                    return clienteExiste;
+
+                }
+
+                Cliente clienteExiste = buscarClienteById(cliente.getId()); -> Se o cliente Existe.
+                clienteExiste.setNomeCliente(cliente.getNomeCliente()); -> Permite atualizar o nome;
+                clienteExiste.setTelefoneCliente(cliente.getTelefoneCliente()); -> Permite atualizar o telefone.
+                clienteExiste = this.clienteRepository.save(clienteExiste); -> Salva no banco.
+
+                Exemplo Json:
+                PUT/clientes/1
+                {
+                    "id": 1,
+                    "nomeCliente": "João Silva Júnior",
+                    "telefoneCliente": "9888-7777"
+                }
+
+
+
+            DELETE:
+
+                public void deletarCliente(Long id){
+                    Cliente cliente = buscarClienteById(id);
+
+                    try{
+                        this.clienteRepository.delete(cliente);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Cliete não localizado. "+ e);
+                    }
+                }
+
+                VOID -> porque não precisa retornar nada no Json.
+                Verifica se o cliente existe e chava o delete nativo do Repository.
+
+*/
