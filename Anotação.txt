@@ -233,6 +233,32 @@
             Se a consulta for simples → Use a Query Derivada (findByUser_Id).
             Se precisar de mais controle, mas ainda quiser JPA → Use JPQL (@Query sem nativeQuery).
             Se precisar de máxima performance e controle total → Use SQL Nativo (@Query com nativeQuery = true).
+
+
+
+        ## O Nome do método em JPA deve seguir uma lógica
+
+        o nome do método deve conter o nome do atributo da entidade:
+            nesse caso como o atributo é Usuario usuario, no JPA tem que ser:
+                findByUsuario e não findByUser por exemplo,
+                porque o atributo da classe Cliente foi declarado como "usuario".
+
+                !! Não é o nome da entidade mas do atributo mesmo.
+
+                Só coloca maiúsculo pela conveção Camel Case:
+                    camelCase.
+
+            Nesse caso também como eu tenho algo que identifica esse atributo na outra
+            entidade (Usuario), eu passo com o "_"
+            List<Cliente> findByUsuario_Id
+
+            Ou seja, na classe Cliente localize o atributo "usuario" pelo seu Id.
+            Poderia ser List<Cliente> findByUsuario_Nome.
+
+            O JPA entende que deve fazer um Join na tabela de Cliente e Usuario e
+            filtrar pelo que vem depois do "_" da tabela Usuario.
+
+
 */
 
 
@@ -477,5 +503,201 @@
 
                 VOID -> porque não precisa retornar nada no Json.
                 Verifica se o cliente existe e chava o delete nativo do Repository.
+
+*/
+
+/*
+
+    Controllers:
+        Controller é a camada onde irá receber as requisições do usuário ou outra api,
+        através dos Verbos HTTP e irá repassar ao Service, que contém de fato as regras de negócio
+        da aplicação.
+
+        Então basicamente, o controller irá criar toda a estrutura de endpoints da sua API
+        permitindo a comunicação entre um cliente externo e a sua aplicação interna.
+
+
+        UsuarioController:
+
+            Anotações de Classe ->
+                @RestController
+                @RequestMapping("/user")
+                @Validated
+                public class UsuarioController {
+                    .... código da classe
+                }
+
+                RestController -> define a entidade como um Controller,ou seja, retorna um JSON
+                como resposta das requisições HTTP;
+
+                RequestMapping("/user") ->
+                    Significa que todos os métodos do meu controller serão derivados/mapeados
+                    a partir do sufixo /user, ou seja, o /user será usado no endpoint para direcionar
+                    as requisições à esse Controller:
+                        "https://localhosto:8080/user/...."
+
+                Validated ->
+                    Habilita Validar os dados que serão repassados em relação à anotações que possuem alguma
+                    regra específica. No caso dessa aplicação, para o nome do usuário por exemplo
+                    as anotações notnull, notempty foram repassadas como um contrato a partir de interfaces.
+                    Isso será validado pelo controller, ou seja, se a aplicação não receber esses parâmetros
+                    a requisição não será completada.
+
+           Atributos e Métodos:
+
+                    @Autowired
+                    private UsuarioService usuarioService;
+                        -> Já que o Controller irá criar uma "porta de acesso" ao Services,
+                        é válido que eu tenha que instanciar o Service nessa classe injetando
+                        todas as suas propriedades com o @Autowired.
+
+                    Verbo GET -> Requisição/Leitura/Seleção/Busca de informação
+                    @GetMapping("/{id}")
+                    public ResponseEntity<Usuario> byId(@PathVariable Long id){
+                        Usuario usuario = this.usuarioService.buscarUsuarioById(id);
+                        return ResponseEntity.ok().body(usuario);
+                    }
+
+                    @GetMapping("/{id}") ->
+                        Vai complementar o meu endpoint inicial "/user", ou seja,
+                        quando tiver "/user/id" estarei acessando esse método do controller
+
+                    ResponseEntity<Entidade> ->
+                        É uma classe do Spring HTTP onde me permite ter acesso aos verbos HTTP e o
+                        status de retorno dessas requisições.
+
+                        Ou seja, a partir da requisição eu retorno um determinado objeto no corpo do Json
+                        como resposta.
+
+                    byId(@PathVariable Long id) ->
+                        Método para buscar um usuário pelo ID
+                        @PathVariable -> Variável do path/caminho/endpoint, ou seja,
+                        meu endpoint tem que receber essa variável no seu escopo.
+
+                    Usuario usuario = this.usuarioService.buscarUsuarioById(id);
+                        -> O Controller chama o usuarioService que possui a regra de buscar o usuario,
+                        caso exista, eu instancio ele em um objeto usuario.
+
+                    return ResponseEntity.ok().body(usuario); ->
+                        Caso a Responsta não tenha nenhum erro eu repasso esse usuário no corpo do meu json.
+                        .ok() -> retorna o Status 200 - OK
+
+                    ## Códigos de Status de API:
+
+                        1xx - Resposta Informativa.
+
+                        2XX - Resposta Bem Sucedida:
+                            Códigos comuns
+                            200 - OK - Bem sucedida
+                            201 - CREATED - Bem sucedida e novo recurso criado.
+                            204 - NO CONTENT - Bem sucedida e sem retorno.
+
+                        3XX - Redirecionamento
+
+                        4XX - Erro do cliente
+                            400 - Bad request
+                            401 - Unauthorized -> unauthenticated
+                            403 - Forbidden - Não autorizado
+                            404 - Not found
+
+                            ## Autorização:
+                                A partir das suas credenciais de acesso, validar
+                                se você tem autorização ao recurso desejado.
+
+                            ## Autenticação:
+                                Repassar suas credenciais de acesso.
+
+                        5XX - Erro do Servidor:
+                            500 - Internal Server Error
+
+                    @PostMapping
+                    public ResponseEntity<Void> criar(@Valid @RequestBody Usuario usuario){
+                        this.usuarioService.criarUsuario(usuario);
+
+                        URI uri = ServletUriComponentsBuilder.fromCurrentRequest()
+                                .path("/{id}").buildAndExpand(usuario.getId()).toUri();
+
+                        return ResponseEntity.created(uri).build();
+
+                    }
+
+                    PostMapping -> Requisição de POST, ou seja, enviar dados e armazenar no banco.
+                    public ResponseEntity<Void> criar(@Valid @RequestBody Usuario usuario){ ->
+                        Como é Criar, eu sei que preciso Validar os atributos da classe Usuario
+                        e esses atributos serão repassados no corpo da requisição/json.
+
+                    @Valid é habilitado pelo @Validated
+
+                    this.usuarioService.criarUsuario(usuario); ->
+                        Chama o service e passa o usuário.
+
+                    URI uri = ServletUriComponentsBuilder.fromCurrentRequest()
+                                .path("/{id}").buildAndExpand(usuario.getId()).toUri();
+                    -> Cria a URL para o usuário.
+                        monta a URL padrão + o ID do respectivo usuário.
+
+
+                    return ResponseEntity.created(uri).build();
+                        -> retorna o Status de Created e repassa no header a location da URL.
+                        Status: 201 Created
+                        Location: http://localhost:8080/user/1
+
+                    @PutMapping("/{id}")
+                    @Validated(Usuario.AttUsuario.class)
+                    public ResponseEntity<Void> atualizar(@Valid @RequestBody Usuario usuario,
+                                                          @PathVariable Long id){
+                        usuario.setId(id);
+                        usuario = this.usuarioService.atualizarUsuario(usuario);
+                        return ResponseEntity.noContent().build();
+                    }
+
+                    Nesse caso, para atualizar o usuário eu preciso:
+                        Validar os atributos
+                        Passar os atributos que serão atualizados no body
+                        E localizar o usuário pelo ID
+                    O resto é igual
+
+
+                   @DeleteMapping("/{id}")
+                   public ResponseEntity<Void> deletar(@PathVariable Long id){
+                       this.usuarioService.deleteUsuario(id);
+                       return ResponseEntity.noContent().build();
+                   }
+
+                   Mesma lógica anterior.
+
+                   Todos os demais métodos fora o Get são Void porque eu não vou retornar um objeto,
+                   só vou repassar uma informação pro banco.
+
+
+           ClienteController:
+                    Segue a mesma lógica, com uma ressalva.
+
+
+                        @GetMapping("/user/{userId}")
+                        public ResponseEntity<List<Cliente>> buscarTodosClientesPorUsuarioId(@PathVariable Long userId){
+                            this.usuarioService.buscarUsuarioById(userId);
+                            List<Cliente> clientes = this.clienteService.buscarTodosClientesByUsuarioId(userId);
+                            return ResponseEntity.ok().body(clientes);
+                        }
+
+                    Eu tenho o método de buscar um cliente específico, mas eu também
+                    tenho esse método que busca uma lista de clientes de um determinado usuário.
+
+                    Então eu complemento a URL padrão com "/user/{userId}".
+
+                    O /user já foi definido no seu controller
+
+                    O {userId} é um PathVariable, ou seja, eu vou ter que passar um id ali.
+
+                    Então eu busco o usuario pelo UsuarioService usando o respository JPA.
+
+                    Se existir, eu cria a lista dos seusclientes.
+
+
+                    ## No controller as variáveis usadas para @PathVariable tem que ser, obviamente,
+                    iguais a variável que será criada no endpoint do @GettMapping ou outro.
+
+
 
 */
